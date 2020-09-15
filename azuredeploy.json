@@ -1,63 +1,81 @@
 {
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
-    "parameters":{
-        "company":{
+    "parameters": {
+        "company": {
             "type": "string",
-            "defaultValue" :"会社名略称など",
-            "maxLength":4,
-            "metadata":{
-                "description":"任意の英数字による略称などをご入力ください。記号不可"
+            "defaultValue": "会社名略称など",
+            "maxLength": 4,
+            "metadata": {
+                "description": "任意の英数字による略称などをご入力ください。記号不可"
             }
         },
         "department": {
             "type": "string",
-            "defaultValue" :"部署名略称など",
-            "maxLength":4,
+            "defaultValue": "部署名略称など",
+            "maxLength": 4,
             "metadata": {
                 "description": "任意の英数字による略称などをご入力ください。記号不可"
             }
         },
         "user_name": {
             "type": "string",
-            "defaultValue" :"苗字略称など。例)山田→ymd",
-            "maxLength":4,
+            "defaultValue": "苗字略称など。例)山田→ymd",
+            "maxLength": 4,
             "metadata": {
                 "description": "任意の英数字による略称などをご入力ください。記号不可"
             }
         },
         "grant_ip": {
             "type": "string",
-            "defaultValue" :"確認方法 https://www.cman.jp/network/support/go_access.cgi",
+            "defaultValue": "確認方法 https://www.cman.jp/network/support/go_access.cgi",
             "metadata": {
                 "description": "SQL Serverの接続許可IP"
             }
         },
+        "sql_admin_name": {
+            "type": "string",
+            "defaultValue": "sqldwuser",
+            "metadata": {
+                "description": "SQL Server管理者ID"
+            }
+        },
+        "sql_admin_password": {
+            "type": "string",
+            "defaultValue": "P@ssw0rd",
+            "metadata": {
+                "description": "SQL Server管理者パスワード"
+            }
+        },
         "location": {
             "type": "string",
-            "defaultValue": "japaneast",
-            "allowedValues" :["japaneast"]
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "リソースグループと同じ場所に作成"
+            }
         }
     },
-    "variables":{
+    "variables": {
         "base_name": "[concat(parameters('company'),'-',parameters('department'),'-bws-',parameters('user_name'))]",
-        "adf_name":"[concat(variables('base_name'),'-adf')]",
-        "adls_name":"[replace(toLower(concat(variables('base_name'),'-adls')),'-','')]",
+        "adf_name": "[concat(variables('base_name'),'-adf')]",
+        "adls_name": "[replace(toLower(concat(variables('base_name'),'-adls')),'-','')]",
         "sqlserver_name": "[concat(variables('base_name'),'-sql')]",
         "sqlpool_name": "[concat(variables('base_name'),'-dw')]",
-        "adb_workspace_name": "[concat(variables('base_name'),'-dbs')]"
+        "adb_workspace_name": "[concat(variables('base_name'),'-dbs')]",
+        "managedResourceGroupName": "[concat('databricks-rg-', variables('adb_workspace_name'), '-', uniqueString(variables('adb_workspace_name'), resourceGroup().id))]",
+        "managedResourceGroupId": "[concat(subscription().id, '/resourceGroups/', variables('managedResourceGroupName'))]"
     },
     "resources": [
         {
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "2019-06-01",
-            "name":"[variables('adls_name')]",
-            "location":"[parameters('location')]",
+            "name": "[variables('adls_name')]",
+            "location": "[parameters('location')]",
             "kind": "StorageV2",
             "sku": {
-                    "name": "Standard_RAGRS"
-                   },
-            "properties":{
+                "name": "Standard_RAGRS"
+            },
+            "properties": {
                 "supportsHttpsTrafficOnly": true,
                 "isHnsEnabled": true
             },
@@ -65,7 +83,7 @@
                 {
                     "name": "default/workshop-files",
                     "type": "blobServices/containers",
-                    "apiVersion": "2018-07-01",
+                    "apiVersion": "2019-06-01",
                     "dependsOn": [
                         "[resourceId('Microsoft.Storage/storageAccounts', variables('adls_name'))]"
                     ]
@@ -73,12 +91,112 @@
                 {
                     "name": "default/polybase",
                     "type": "blobServices/containers",
-                    "apiVersion": "2018-07-01",
+                    "apiVersion": "2019-06-01",
                     "dependsOn": [
                         "[resourceId('Microsoft.Storage/storageAccounts', variables('adls_name'))]"
                     ]
                 }
             ]
+        },
+        {
+            "type": "Microsoft.DataFactory/factories",
+            "apiVersion": "2018-06-01",
+            "name": "[variables('adf_name')]",
+            "location": "[parameters('location')]"
+        },
+        {
+            "type": "Microsoft.Sql/servers",
+            "apiVersion": "2020-02-02-preview",
+            "name": "[variables('sqlserver_name')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "administratorLogin": "[parameters('sql_admin_name')]",
+                "administratorLoginPassword": "[parameters('sql_admin_password')]",
+                "publicNetworkAccess": "Enabled"
+            },
+            "resources": [
+                {
+                    "type": "databases",
+                    "apiVersion": "2020-02-02-preview",
+                    "name": "[variables('sqlpool_name')]",
+                    "location": "[parameters('location')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Sql/servers', variables('sqlserver_name'))]"
+                    ],
+                    "sku": {
+                        "name": "DataWarehouse",
+                        "tier": "DataWarehouse",
+                        "capacity": 900
+                    },
+                    "kind": "v12.0,user,datawarehouse,gen2",
+                    "properties": {
+                        "collation": "SQL_Latin1_General_CP1_CI_AS",
+                        "maxSizeBytes": 263882790666240,
+                        "catalogCollation": "SQL_Latin1_General_CP1_CI_AS",
+                        "readScale": "Disabled",
+                        "readReplicaCount": 0,
+                        "storageAccountType": "GRS"
+                    }
+                },
+                {
+                    "type": "firewallRules",
+                    "apiVersion": "2020-02-02-preview",
+                    "name": "[concat(variables('sqlserver_name'), '/grantIP')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Sql/servers', variables('sqlserver_name'))]"
+                    ],
+                    "properties": {
+                        "startIpAddress": "[parameters('grant_ip')]",
+                        "endIpAddress": "[parameters('grant_ip')]"
+                    }
+                },
+                {
+                    "type": "firewallRules",
+                    "apiVersion": "2020-02-02-preview",
+                    "name": "[concat(variables('sqlserver_name'), '/AllowAllWindowsAzureIps')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Sql/servers', variables('sqlserver_name'))]"
+                    ],
+                    "properties": {
+                        "startIpAddress": "0.0.0.0",
+                        "endIpAddress": "0.0.0.0"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Databricks/workspaces",
+            "apiVersion": "2018-04-01",
+            "name": "[variables('adb_workspace_name')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "premium"
+            },
+            "properties": {
+                "managedResourceGroupId": "[variables('managedResourceGroupId')]"
+            }
         }
-    ]
+    ],
+    "outputs": {
+        "storageAccountName": {
+            "type": "string",
+            "value": "[variables('adls_name')]"
+        },
+        "DataFactoryName": {
+            "type": "string",
+            "value": "[variables('adf_name')]"
+        },
+        "SQLServerName": {
+            "type": "string",
+            "value": "[variables('sqlserver_name')]"
+        },
+        "SQLPoolName": {
+            "type": "string",
+            "value": "[variables('sqlpool_name')]"
+        },
+        "AzureDatabricksName": {
+            "type": "string",
+            "value": "[variables('adb_workspace_name')]"
+        }
+    }
 }
