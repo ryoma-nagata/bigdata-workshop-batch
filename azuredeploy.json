@@ -1,0 +1,84 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters":{
+        "company":{
+            "type": "string",
+            "defaultValue" :"会社名略称など",
+            "maxLength":4,
+            "metadata":{
+                "description":"任意の英数字による略称などをご入力ください。記号不可"
+            }
+        },
+        "department": {
+            "type": "string",
+            "defaultValue" :"部署名略称など",
+            "maxLength":4,
+            "metadata": {
+                "description": "任意の英数字による略称などをご入力ください。記号不可"
+            }
+        },
+        "user_name": {
+            "type": "string",
+            "defaultValue" :"苗字略称など。例)山田→ymd",
+            "maxLength":4,
+            "metadata": {
+                "description": "任意の英数字による略称などをご入力ください。記号不可"
+            }
+        },
+        "grant_ip": {
+            "type": "string",
+            "defaultValue" :"確認方法 https://www.cman.jp/network/support/go_access.cgi",
+            "metadata": {
+                "description": "SQL Serverの接続許可IP"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "japaneast",
+            "allowedValues" :["japaneast"]
+        }
+    },
+    "variables":{
+        "base_name": "[concat(parameters('company'),'-',parameters('department'),'-bws-',parameters('user_name'))]",
+        "adf_name":"[concat(variables('base_name'),'-adf')]",
+        "adls_name":"[replace(toLower(concat(variables('base_name'),'-adls')),'-','')]",
+        "sqlserver_name": "[concat(variables('base_name'),'-sql')]",
+        "sqlpool_name": "[concat(variables('base_name'),'-dw')]",
+        "adb_workspace_name": "[concat(variables('base_name'),'-dbs')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name":"[variables('adls_name')]",
+            "location":"[parameters('location')]",
+            "kind": "StorageV2",
+            "sku": {
+                    "name": "Standard_RAGRS"
+                   },
+            "properties":{
+                "supportsHttpsTrafficOnly": true,
+                "isHnsEnabled": true
+            },
+            "resources": [
+                {
+                    "name": "default/workshop-files",
+                    "type": "blobServices/containers",
+                    "apiVersion": "2018-07-01",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Storage/storageAccounts', variables('adls_name'))]"
+                    ]
+                },
+                {
+                    "name": "default/polybase",
+                    "type": "blobServices/containers",
+                    "apiVersion": "2018-07-01",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Storage/storageAccounts', variables('adls_name'))]"
+                    ]
+                }
+            ]
+        }
+    ]
+}
