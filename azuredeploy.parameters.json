@@ -3,25 +3,22 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "company": {
-            "value": "会社名略称など"
+            "value": "zeal"
         },
         "department": {
-            "value": "部署名略称など"
+            "value": "bap"
         },
         "user_name": {
-            "value": "苗字略称など。例)山田→ymd"
+            "value": "ngt"
         },
         "grant_ip": {
-            "value": "確認方法 https://www.cman.jp/network/support/go_access.cgi"
+            "value": "192.1.1.1"
         },
         "sql_admin_name": {
             "value": "sqldwuser"
         },
         "sql_admin_password": {
             "value": "P@ssw0rd"
-        },
-        "location": {
-            "value": "" // TODO: Fill in parameter value
         }
     }
 }
