@@ -21,7 +21,7 @@
         "user_name": {
             "type": "string",
             "defaultValue": "苗字略称など。例)山田→ymd",
-            "maxLength": 4,
+            "maxLength": 6,
             "metadata": {
                 "description": "任意の英数字による略称などをご入力ください。記号不可"
             }
