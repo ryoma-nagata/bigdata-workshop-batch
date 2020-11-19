@@ -71,7 +71,7 @@
                     "scope": "inner"
                 },
                 "templateLink": {
-                    "uri": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fryoma-nagata%2Fbigdata-workshop-batch%2Fmaster%2Fazuredeploy.json",
+                    "uri": "https://raw.githubusercontent.com/ryoma-nagata/bigdata-workshop-batch/master/azuredeploy.json",
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
